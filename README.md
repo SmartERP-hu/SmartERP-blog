@@ -1,1 +1,1 @@
-# smarterp-technical-docs
+# smarterp-blog-articles
