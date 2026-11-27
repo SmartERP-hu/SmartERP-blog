@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'content/blog/**/*.mdx'
+      - 'content/blog/*.mdx'
       - 'public/blog/**/cover.jpg'
   workflow_dispatch:
     inputs:
