@@ -7,7 +7,7 @@ on:
       - main
     paths:
       - 'content/blog/**.mdx'
-      - 'public/blog/**/cover.jpg'
+      - 'public/blog/*/cover.jpg'
   workflow_dispatch:
     inputs:
       topic_folder:
