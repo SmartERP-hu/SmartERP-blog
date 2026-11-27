@@ -48,6 +48,7 @@ try {
 
     // Expected structure: content/blog/<topic_name>/<file>.mdx
     const topicName = path.basename(path.dirname(mdxRelativePath));
+    console.log( topicname );
     const coverPath = path.resolve('public/blog', topicName, 'cover.jpg');
 
     // Output location in the main tree (adjust if you prefer root or content/blog/<topic>/)
