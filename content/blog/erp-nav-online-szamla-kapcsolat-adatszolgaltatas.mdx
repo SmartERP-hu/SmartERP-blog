@@ -1,0 +1,156 @@
+---
+title: "ERP és NAV Online Számla kapcsolat: automatikus adatszolgáltatás"
+description: "Ismerje meg az ERP és NAV Online Számla kapcsolatát! Útmutató a technikai felhasználó beállításához, hibakezeléshez és a 2026-os szabályokhoz."
+date: "2026-11-26T07:36:51.611Z"
+slug: "erp-nav-online-szamla-kapcsolat-adatszolgaltatas"
+image: "/blog/erp-nav-online-szamla-kapcsolat-adatszolgaltatas/cover.jpg"
+tags: ["nav online számla integráció", "számlázás erp", "technikai felhasználó nav", "e-számla 2026", "automatikus számlázás"]
+---
+
+A NAV Online Számla ma már nem külön teendő a számlázás mellett, hanem az ERP folyamatának beépített lépése. Jól beállítva a kiállított számla adatai észrevétlenül eljutnak a NAV-hoz. Ha viszont a beállítás hiányos, a hiba hetekkel később, az időszakzárásnál derül ki. Ez a cikk a technikai felhasználó beállításától a hibakezelésen át a könyvelői egyeztetésig vezeti végig az ERP és a NAV Online Számla kapcsolatát, a 2026-os szabálykörnyezet változáskezelési oldalával együtt.
+
+## Legfontosabb tudnivalók
+
+- Az ERP elvégzi a küldést, de az adatszolgáltatási kötelezettség a vállalkozásnál marad, ezért kell a folyamatnak belső felelős.
+- A technikai felhasználó négy eleme (felhasználónév, jelszó, aláírókulcs, cserekulcs) nem kerülhet forráskódba, táblázatba vagy e-mailbe, és a teszt- és az éles környezethez külön hozzáférés javasolt.
+- Az adatküldés aszinkron: a beküldés visszaigazolása nem jelent sikeres feldolgozást, ezért a státuszt le kell kérdezni, a tranzakcióazonosítót pedig a számlához kell rendelni.
+- Újraküldés vagy időtúllépés előtt mindig az előző beküldés státuszát kell megnézni, mert a vak ismétlés duplikált számlarekordot okozhat.
+- A 2026-os szabályokról csak hivatalos forrásból szabad dönteni, ehhez dokumentált felülvizsgálati ciklus, tesztelés és nevesített felelős kell.
+
+## Az ERP és a NAV Online Számla kapcsolata és az adatszolgáltatás fogalma
+
+A NAV Online Számla a kiállított számlák adatainak elektronikus továbbítása a NAV felé. Az ERP ezt automatizálhatja: a számla kiállításakor a rendszer maga állítja össze és küldi el az adatokat, technikai felhasználó azonosításával.
+
+### Az adatszolgáltatási kötelezettség és az ERP szerepe
+
+Az automatizálás a munkát viszi el, a felelősséget nem.
+
+Az adatszolgáltatási kötelezettség a vállalkozásnál marad, akkor is, ha a küldést az ERP végzi, és akkor is, ha a fejlesztést külső partner készítette. Ön tehát nem a küldés gombját adja ki a kezéből, hanem a felügyeletet tartja meg: ki látja a hibát, ki javítja, és ki tudja igazolni, hogy a számla beérkezett. Az ERP nem pótolja a belső felelőst, és a könyvelői ellenőrzést sem helyettesíti.
+
+## A technikai felhasználó beállítása a NAV Online Számla rendszerben
+
+A menüpontok és a képernyők gyakran változnak, ezért az alábbiak a folyamatot írják le. A pontos kattintási sorrendet mindig az aktuális hivatalos útmutató adja a [NAV Online Számla portálon](https://onlineszamla.nav.gov.hu).
+
+### Regisztráció és a cég adatainak rendezése
+
+A kapcsolat alapja egy regisztrált cég a portálon. A regisztrációt a cég nevében eljáró, erre jogosult személy végzi. Előbb egyeztesse a cég adatait és adószámát a hivatalos nyilvántartással, mert az eltérés később hitelesítési hibaként jelentkezik, amikor már az ERP is rá van kötve.
+
+### A technikai felhasználó létrehozása és a hitelesítő kulcsok
+
+A technikai felhasználót a portálon hozza létre, ez lesz az ERP "belépője". Négy elem tartozik hozzá: felhasználónév, jelszó, aláírókulcs és cserekulcs. A felhasználónév és a jelszó azonosít, az aláírókulccsal az ERP aláírja a kéréseit, a cserekulccsal pedig a NAV által visszaadott hitelesítő token fejthető vissza.
+
+A teszt- és az éles környezethez érdemes külön hozzáférést kérni, így a próbaküldések soha nem érintik a valós adatokat.
+
+### Jogosultságok és kulcskezelés: a biztonság alapjai
+
+Ezek az adatok nem kerülhetnek forráskódba, megosztott táblázatba vagy e-mailbe, mert aki megszerzi őket, a cég nevében küldhet számlaadatot. A kulcsokat az ERP titkosított, hozzáférés-naplózott tárolóban őrizze, és a hozzáférők köre legyen névre szóló. Ha valaki kilép a cégtől, a kulcsok cseréje szerepeljen a kilépési teendők között.
+
+A technikai felhasználó nem váltja ki a személyes felelősséget: a számlák tartalmáért továbbra is a cég áll jót.
+
+## Számlázás az ERP-ben: az adatminőség az első lépés
+
+A hibák gyakran nem a szállítási csatornában, hanem a számla tartalmában és a törzsadatokban keletkeznek. Szakértői álláspontunk szerint az automatikus számlázás stabilitását kevésbé a küldés technikai egyszerűsége határozza meg, mint az adatok minősége, a hibakezelési szabályok és a beküldések nyomon követhetősége.
+
+### Partnerek és adószámok ellenőrzése a rögzítéskor
+
+Az ERP számlázó moduljának a kiadás előtt ellenőriznie kell a kötelező mezőket, az adószámok formátumát, az ÁFA-kulcsokat és a pénznemet. A partner adószáma a NAV adószám-lekérdezésével (queryTaxpayer) is ellenőrizhető, így a hibás törzsadat már a rögzítéskor kiderül, nem a visszautasított számlánál. Ezt Önnek egyszer kell beépítenie, utána minden számlánál megspórol vele egy javítási kört.
+
+### Számlaszám, módosítás és sztornó: a hivatkozások megőrzése
+
+Az új számla, a módosítás és a sztornó nem ugyanaz a művelet. A már beküldött, téves adatot tartalmazó számla javítása az eredeti számlára való hivatkozást igényel, ezért az ERP-nek a kapcsolódó számlákat a kiállításkor is nyilván kell tartania. Ha a kapcsolat elvész, a javítás nem köthető az eredetihez, és az automatikus számlázás megbízhatatlanná válik.
+
+## A NAV Online Számla integráció működése ERP-ből: lépésről lépésre
+
+Ez a cikk technikai magja: három egymásra épülő lépés. A pontos mezőneveket és verziókat a NAV műszaki leírása és tesztkörnyezete adja, ezért itt nem rögzítünk verziószámot.
+
+### Hitelesítés: tokenkérés a technikai felhasználóval
+
+A folyamat hitelesítő kéréssel (tokenExchange) indul. Az ERP a technikai felhasználó adataival azonosítja magát, a NAV pedig titkosított tokent ad vissza, amelyet a cserekulccsal lehet feloldani. Enélkül nincs beküldés.
+
+### Az adatszolgáltatás beküldése és a feldolgozás státusza
+
+Ezután a számla XML-üzenete a megfelelő művelettel, vagyis új számlaként, módosításként vagy sztornóként kerül beküldésre (manageInvoice). A NAV erre tranzakcióazonosítót ad vissza. Az adatküldés aszinkron, így ez a visszaigazolás még nem jelenti a sikeres feldolgozást: az eredmény a tranzakció státuszának lekérdezésével (queryTransactionStatus) derül ki.
+
+Egy tipikus számla útja így néz ki: az ERP a teljesítés után kiállítja a számlát, az adatokból XML-üzenet készül, a technikai felhasználóval hitelesített beküldés után a NAV tranzakcióazonosítót ad, a végleges eredmény pedig külön státuszlekérdezéssel derül ki. Ha a feldolgozás hibával zárul, a javítást az ERP-ben kell elvégezni, majd a javított adatok küldhetők újra.
+
+A tranzakcióazonosítót mindig a számlához kell rendelni, és az ERP-ben meg kell őrizni.
+
+### Automatikus számlázás: mikor és hogyan indul az adatküldés
+
+Az automatikus számlázásnál a küldést a számla kiállítása indítja. Az ERP-nek ilyenkor sorba állítással, újrapróbálkozási szabályokkal és a tranzakcióazonosító tárolásával kell gondoskodnia a megbízhatóságról, hogy a NAV átmeneti elérhetetlensége esetén se vesszen el egyetlen számla sem, hanem a sorban várja a következő próbát.
+
+Döntéshozóként három megvalósítási út közül választhat. A közvetlen ERP-integráció kevesebb mozgó alkatrészt jelent. A köztes integrációs réteg több rendszert fog össze, és a NAV-os változásokat egy helyen kezeli. A külön számlázóprogram gyorsan indul, de az ERP-vel külön adatcserét igényel.
+
+## Hibakezelés: a leggyakoribb hibaforrások és a kezelésük
+
+A hibákat érdemes okok szerint rendezni, nem hibakódok szerint, mert a kódok a műszaki leírás frissítésével változhatnak. A kezelési sorrend a hitelesítéssel kezdődik, utána az adatok, végül a kommunikáció következik.
+
+### Hitelesítési és jogosultsági hibák
+
+Ha már a tokenkérés elakad, a gyanú a belépési adatokra esik: lejárt vagy rosszul átmásolt jelszó, kicserélt kulcs, összekevert teszt- és éles hozzáférés. Ezeket még a küldés előtt ki lehet zárni, és a megoldás ritkán programozás, inkább kulcskezelési fegyelem.
+
+### Adat- és sémahibák: a visszautasított számla
+
+Ha a NAV fogadta az üzenetet, de a feldolgozás hibával zárul, a számla adatai vagy az XML szerkezete a hibás. Jellemző ok a hiányzó kötelező mező, a rossz adószámformátum, az ÁFA-összegek eltérése vagy az elveszett hivatkozás. A javítást az ERP-ben végezze el, ne az XML kézi átírásával, mert akkor a számla és az elküldött adat szétválik.
+
+### Javítás és újraküldés: a duplikáció elkerülése
+
+A vakon ismételt beküldés duplikált számlarekordot okozhat. Újraküldés vagy időtúllépés esetén ezért először az előző beküldés státuszát kell megnézni, és csak akkor szabad újra küldeni, ha az a feldolgozás sikertelenségét mutatja. Időtúllépésnél ez különösen fontos, hiszen előfordulhat, hogy a NAV megkapta az üzenetet, csak a válasz nem érkezett meg.
+
+A hibanaplók és a riasztások osztályozását mesterséges intelligencia gyorsíthatja, mert ok szerint csoportosítja a hibákat és javaslatot tesz a kezelésre. A javítási döntés viszont maradjon emberi jóváhagyáshoz kötve, így a folyamat biztonságos marad.
+
+## Könyvelői kapcsolat: közös adatok és rendszeres egyeztetés
+
+Itt a hangsúly a technikáról a folyamatra kerül. A könyvelőnek ugyanazt a számlakört kell látnia a könyvekben, mint amit a NAV felé bejelentettek.
+
+### Felelősségi körök: ki mit lát és ki mit javít
+
+Az éles indulás előtt írásban rögzítse a szerepeket. Az ERP üzemeltetője a küldésért és a technikai hibákért felel, a számlázást végző kolléga a tartalmi javításért, a könyvelő pedig az eltérések egyeztetéséért. Amit ekkor nem tisztáznak, azt később egy határidő közeli hibánál kell, kapkodva.
+
+### Egyeztetés a beküldött és a könyvelt számlák között
+
+Az időszakzárás előtt érdemes visszatérő egyeztetést tartani kivétellistával: a könyvelt, de a NAV-nál nem látszó, valamint az elutasított számlák jegyzékével. Ha egy számla szerepel a könyvelésben, de a NAV-os nyilvántartásban nem látszik, a tranzakcióazonosító és a státuszlekérdezés eredménye adja azt a bizonyítékot, amellyel az eltérés okát a könyvelővel közösen fel lehet deríteni. Ezeket ezért az ERP-ben tartósan meg kell őrizni.
+
+## E-számla és online adatszolgáltatás 2026-ban: mire érdemes figyelni
+
+Önnek 2026-ban nem új szabályok fejből tudására, hanem egy működő változáskezelési rendre van szüksége. Konkrét 2026-os határidőt vagy új kötelezettséget ellenőrzött forrás nélkül nem állítunk.
+
+### Az online adatszolgáltatás és az e-számla különbsége
+
+Az e-számla és az online adatszolgáltatás fogalmilag összefügg, de nem azonos. Az online adatszolgáltatás a kiállított számla adatainak jelentése a NAV felé. Az e-számla a számla elektronikus formában történő kiállítására és átadására vonatkozik. A két fogalom más kérdésre felel, ezért a követelményeket külön kell megvizsgálni.
+
+### Változáskezelés a szabályok és a rendszer frissítésénél
+
+Az aktuális állapotot hivatalos, publikált forrásokból kell megerősíteni: a NAV közleményeiből, műszaki leírásából és a könyvelő tájékoztatásából. Ez a 2027-re vonatkozó bejelentésekre is igaz. Három dolog segít: dokumentált, rendszeres felülvizsgálati ciklus, teszt-környezeti ellenőrzés minden változás előtt, és egy nevesített felelős, aki a szabályok változását figyeli.
+
+Ez a rend nem jósolja meg a jövő szabályait, de biztosítja, hogy a változás ne az éles számlázásnál érje a céget.
+
+## Összegzés és a következő lépés
+
+Öt döntési pont határozza meg, mennyire lesz megbízható az ERP és a NAV Online Számla kapcsolata. A kulcsokat biztonságosan kell kezelni, a számlák adatainak már a rögzítéskor pontosnak kell lenniük, a hibáknak okuk szerint megvan a saját kezelési útjuk, a könyvelővel rendszeresen egyeztetni kell, a szabályváltozásokra pedig felelőst kell kijelölni.
+
+Cégünk üzletviteli szoftverek fejlesztésével, testreszabásával és támogatásával foglalkozik. ERP-fejlesztésben, integrációban és adatcserében dolgozunk, ezért a NAV-os adatszolgáltatás bevezetésénél a számlázási folyamat, a könyvelési adatok és a hibakezelés összehangolását a megvalósítás természetes részének tekintjük.
+
+Ha szeretné átbeszélni a saját ERP-környezetét és a NAV Online Számla kapcsolatát, [szakmai konzultáció kérése](https://www.smarterp.hu/hu/demo-igenyles.html) mellett szoftverbemutatót is egyeztethet szakértőinkkel. Szívesen bemutatjuk a megoldásainkat, és megbeszéljük, hogyan működhetnénk együtt, kötelezettségek nélkül.
+
+## Gyakran ismételt kérdések
+
+### Mi a különbség az e-számla és a NAV online adatszolgáltatás között?
+
+Az online adatszolgáltatás a kiállított számla adatainak jelentése a NAV felé. Az e-számla a számla elektronikus formában történő kiállítására és átadására vonatkozik. A két fogalom összefügg, de nem azonos, ezért a követelményeiket külön kell vizsgálni.
+
+### Mit kell tennem, ha az ERP időtúllépést jelez beküldéskor?
+
+Ne küldje újra azonnal. Először kérdezze le az előző beküldés tranzakciójának státuszát, mert a NAV akkor is megkaphatta az üzenetet, ha a válasz nem érkezett meg. Csak akkor küldjön újra, ha a státusz sikertelen feldolgozást mutat.
+
+### Hol találom a 2026-os szabályok aktuális részleteit?
+
+A NAV hivatalos közleményeiben és műszaki leírásában, valamint a könyvelőjénél. Ezeket érdemes dokumentált ciklusban átnézni, és minden változást tesztkörnyezetben kipróbálni az éles használat előtt.
+
+### Kell külön technikai felhasználó a teszthez és az éleshez?
+
+Igen, a teszt- és az éles környezethez külön hozzáférést érdemes kérni. Így a próbaküldések nem érintik a valós adatokat, és a kulcsok sem keverednek össze.
+
+### Mi történik, ha a számla szerepel a könyvelésben, de a NAV-nál nem látszik?
+
+A tranzakcióazonosító és a státuszlekérdezés eredménye adja a bizonyítékot az eltérés okának felderítéséhez. Ezeket az ERP-ben meg kell őrizni, és a könyvelővel közösen kell átnézni, hogy hiányzó vagy elutasított beküldésről van-e szó.
