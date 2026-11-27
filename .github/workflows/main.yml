@@ -1,31 +1,103 @@
-# .github/workflows/convert-to-pdf.yml
+# .github/workflows/generate-blog-pdf.yml
+name: Generate Blog PDF
 
-name: Docs to PDF
-# This workflow is triggered on pushes to the repository.
 on:
   push:
     branches:
       - main
-    # Paths can be used to only trigger actions when you have edited certain files, such as a file within the /docs directory
     paths:
-      - 'content/blog/**.mdx'
+      - 'content/blog/**/*.mdx'
+      - 'public/blog/**/cover.jpg'
+  workflow_dispatch:
+    inputs:
+      topic_folder:
+        description: 'Optional topic folder name (e.g., new_topic_name) to regenerate manually'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pdf-generator-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  converttopdf:
-    name: Build PDF
+  build-pdf:
     runs-on: ubuntu-latest
+    # Prevent infinite loops if a custom PAT is ever used for the commit step
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: baileyjm02/markdown-to-pdf@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          input_dir: content/blog
-          output_dir: pdfs
-          images_dir: docs/images
-          # for example <img src="./images/file-name.png">
-          image_import: ./images
-          # Default is true, can set to false to only get PDF files
-          build_html: false
-      - uses: actions/upload-artifact@v3
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: docs
-          path: pdfs
+          node-version: '20'
+
+      - name: Install PDF generator dependencies
+        run: |
+          npm install --no-save gray-matter marked playwright
+          npx playwright install --with-deps chromium
+
+      - name: Find target MDX files
+        id: find_mdx
+        shell: bash
+        run: |
+          TARGET_FILES=()
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.topic_folder }}" ]; then
+            while IFS= read -r -d '' file; do
+              TARGET_FILES+=("$file")
+            done < <(find "content/blog/${{ inputs.topic_folder }}" -name "*.mdx" -print0 2>/dev/null)
+          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
+            # Check changed MDX files directly
+            while IFS= read -r file; do
+              [ -f "$file" ] && TARGET_FILES+=("$file")
+            done < <(git diff --name-only HEAD~1 HEAD -- 'content/blog/**/*.mdx')
+
+            # If cover.jpg changed, locate the matching MDX in content/blog/<topic>/
+            while IFS= read -r cover; do
+              TOPIC=$(basename "$(dirname "$cover")")
+              if [ -d "content/blog/$TOPIC" ]; then
+                while IFS= read -r -d '' mdx; do
+                  TARGET_FILES+=("$mdx")
+                done < <(find "content/blog/$TOPIC" -name "*.mdx" -print0)
+              fi
+            done < <(git diff --name-only HEAD~1 HEAD -- 'public/blog/**/cover.jpg')
+          else
+            # Fallback for initial commit
+            while IFS= read -r -d '' file; do
+              TARGET_FILES+=("$file")
+            done < <(find content/blog -name "*.mdx" -print0)
+          fi
+
+          # Deduplicate file list
+          UNIQUE_FILES=$(printf "%s\n" "${TARGET_FILES[@]}" | awk 'NF' | sort -u | tr '\n' ' ')
+          echo "files=$UNIQUE_FILES" >> "$GITHUB_OUTPUT"
+          echo "Detected MDX files: $UNIQUE_FILES"
+
+      - name: Generate PDFs
+        if: steps.find_mdx.outputs.files != ''
+        run: node .github/scripts/generate-pdf.mjs ${{ steps.find_mdx.outputs.files }}
+
+      - name: Commit and push generated PDFs
+        if: steps.find_mdx.outputs.files != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Pull latest changes in case another commit landed while Chromium was running
+          git add public/blog/**/*.pdf
+          if git diff --staged --quiet; then
+            echo "No PDF changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore(blog): generate PDF for updated post [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
